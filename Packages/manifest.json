@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.iam1337.extosc": "https://github.com/Iam1337/extOSC.git#upm",
     "com.unity.ai.navigation": "2.0.9",
     "com.unity.burst": "1.8.25",
     "com.unity.cinemachine": "2.10.4",
