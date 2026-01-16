@@ -1,138 +1,272 @@
 using UnityEngine;
-using System.Collections;
 
 /// <summary>
-/// ESP32 Input Provider - PLACEHOLDER for future implementation.
-/// 
-/// This script will handle serial communication with the ESP32 device.
-/// 
-/// ESP32 Hardware Sensors:
-/// - Fire Sensor (Digital): Detects if fire is ON or OFF
-/// - Water Sensor (Digital): Detects if water is ON or OFF  
-/// - Joystick (Analog): 2-axis analog joystick for selection movement
-/// - FSR Sensor (Analog): Force Sensitive Resistor for pan movement intensity (0.0 to 1.0)
-/// 
-/// Expected serial commands from ESP32:
-/// - "FIRE:1" or "FIRE:0" → Fire sensor state (from fire sensor hardware)
-/// - "WATER:1" or "WATER:0" → Water sensor state (from water sensor hardware)
-/// - "JOY:0.3,-0.8" → Joystick direction (X,Y values from analog joystick)
-/// - "FSR:0.75" → Pan movement intensity (0.0 to 1.0 from FSR sensor)
-/// 
-/// TODO: Implement serial port communication when ESP32 hardware is available.
+/// ESP32 Input Provider.
+///
+/// Reads ESP32 inputs via OSC (recommended) or via keyboard simulation.
+/// This provider feeds KitchenState through InputManager:
+/// - Fire: one-frame ON/OFF events (edge-triggered)
+/// - Water: one-frame ON/OFF events (edge-triggered)
+/// - Joystick: Vector2 for selection movement
+/// - FSR: 0..1 intensity
+///
+/// NOTE: This script does NOT implement FPS camera look.
 /// </summary>
 public class ESP32InputProvider : MonoBehaviour, IInputProvider
 {
     [Header("ESP32 Connection Settings")]
-    [Tooltip("Serial port name (e.g., COM3 on Windows, /dev/ttyUSB0 on Linux)")]
-    public string serialPort = "COM3";
-
-    [Tooltip("Baud rate for serial communication")]
-    public int baudRate = 9600;
-
     [Tooltip("Enable ESP32 input (set to false to disable even if connected)")]
     public bool enableESP32Input = false;
+
+    [Header("OSC (Wi-Fi) Settings")]
+    [Tooltip("Use OSC input coming from ESP32OSCReceiver (Wi-Fi).")]
+    public bool useOSC = true;
+
+    [Tooltip("Receiver component that stores latest OSC values from the ESP32.")]
+    public ESP32OSCReceiver oscReceiver;
+
+    [Tooltip("If no OSC messages arrive for this many seconds, consider disconnected.")]
+    public float oscTimeoutSeconds = 1.5f;
+
+    [Tooltip("Raw value >= threshold means WATER is ON (if not inverted).")]
+    public int waterOnThreshold = 1;
+
+    [Tooltip("Raw value <= threshold means WATER is OFF (hysteresis). If <= 0, hysteresis is disabled and waterOnThreshold is used for both.")]
+    public int waterOffThreshold = 0;
+
+    [Tooltip("Raw value >= threshold means FIRE is ON (if not inverted).")]
+    public int fireOnThreshold = 1;
+
+    [Tooltip("Invert water logic (useful if sensor reports 0 when active).")]
+    public bool invertWater = false;
+
+    [Tooltip("Invert fire logic (useful if sensor reports 0 when active).")]
+    public bool invertFire = true;
+
+    [Tooltip("Max raw FSR value from ESP32 ADC (used to normalize to 0..1).")]
+    public int fsrMaxRaw = 4095;
+
+    [Tooltip("Joystick deadzone for OSC joystick (-1..1).")]
+    [Range(0.0f, 1.0f)]
+    public float joystickDeadzone = 0.15f;
 
     [Header("Debug")]
     [Tooltip("Simulate ESP32 input using keyboard (for testing without hardware)")]
     public bool simulateWithKeyboard = false;
 
-    // Current state
-    private bool isFireOn = false;
-    private bool isFireOff = false;
-    private bool isWaterOn = false;
-    private bool isWaterOff = false;
-    private Vector2 joystickDirection = Vector2.zero;
-    private float panMovementIntensity = 0.0f; // 0.0 to 1.0 (from FSR sensor)
-    private bool isActive = false;
+    // Current state (one-frame events for water/fire)
+    private bool isFireOn;
+    private bool isFireOff;
+    private bool isWaterOn;
+    private bool isWaterOff;
+    private Vector2 joystickDirection;
+    private float panMovementIntensity;
 
-    // TODO: Add serial port field when implementing
-    // private SerialPort serialPort;
+    private bool isActive;
+
+    // Edge detection for OSC stateful sensors.
+    private bool prevFireState;
+    private bool prevWaterState;
+
+    private void Awake()
+    {
+        // Do not override Inspector defaults here.
+        // Fire inversion depends on how the sensor is wired (active-high vs active-low).
+    }
 
     private void Start()
     {
-        if (enableESP32Input && !simulateWithKeyboard)
+        if (simulateWithKeyboard)
         {
-            InitializeSerialConnection();
-        }
-        else if (simulateWithKeyboard)
-        {
-            Debug.LogWarning("ESP32InputProvider: Running in simulation mode (using keyboard). " +
-                           "This is for testing only. Real ESP32 connection is not active.");
-            isActive = true; // Allow simulation mode
+            Debug.LogWarning("ESP32InputProvider: Running in simulation mode (keyboard). Real ESP32 connection is not active.");
+            isActive = true;
         }
     }
 
-    private void Update()
-    {
-        if (simulateWithKeyboard)
-        {
-            // Simulate ESP32 input using keyboard for testing
-            UpdateSimulatedInput();
-        }
-        else if (enableESP32Input)
-        {
-            // TODO: Read from serial port
-            // ReadSerialData();
-        }
+    #region IInputProvider
 
-        // Reset one-time flags
+    public void UpdateInput()
+    {
+        // Reset one-time flags (they will be re-set during this UpdateInput call if transitions occur).
         isFireOn = false;
         isFireOff = false;
         isWaterOn = false;
         isWaterOff = false;
+
+        if (!enableESP32Input)
+        {
+            isActive = false;
+            joystickDirection = Vector2.zero;
+            panMovementIntensity = 0.0f;
+            return;
+        }
+
+        if (simulateWithKeyboard)
+        {
+            UpdateSimulatedInput();
+            return;
+        }
+
+        if (useOSC)
+        {
+            UpdateFromOSC();
+            return;
+        }
+
+        // Serial mode not implemented.
+        isActive = false;
+        joystickDirection = Vector2.zero;
+        panMovementIntensity = 0.0f;
     }
 
-    private void OnDestroy()
-    {
-        // TODO: Close serial port connection
-        // CloseSerialConnection();
-    }
-
-    #region IInputProvider Implementation
-
-    public void UpdateInput()
-    {
-        // Input is updated in Update() method
-    }
-
-    public bool GetFireOn()
-    {
-        return isFireOn;
-    }
-
-    public bool GetFireOff()
-    {
-        return isFireOff;
-    }
-
-    public bool GetWaterOn()
-    {
-        return isWaterOn;
-    }
-
-    public bool GetWaterOff()
-    {
-        return isWaterOff;
-    }
-
-    public Vector2 GetJoystickDirection()
-    {
-        return joystickDirection;
-    }
-
-    public float GetPanMovementIntensity()
-    {
-        return panMovementIntensity;
-    }
+    public bool GetFireOn() => isFireOn;
+    public bool GetFireOff() => isFireOff;
+    public bool GetWaterOn() => isWaterOn;
+    public bool GetWaterOff() => isWaterOff;
+    public Vector2 GetJoystickDirection() => joystickDirection;
+    public float GetPanMovementIntensity() => panMovementIntensity;
 
     public bool IsActive()
     {
-        return isActive && enableESP32Input;
+        if (!enableESP32Input) return false;
+
+        if (simulateWithKeyboard)
+        {
+            return isActive;
+        }
+
+        if (useOSC)
+        {
+            if (oscReceiver == null)
+            {
+                oscReceiver = ESP32OSCReceiver.Instance != null
+                    ? ESP32OSCReceiver.Instance
+                    : FindFirstObjectByType<ESP32OSCReceiver>();
+            }
+
+            bool connected = oscReceiver != null && oscReceiver.IsConnected(oscTimeoutSeconds);
+            isActive = connected;
+            return connected;
+        }
+
+        return isActive;
     }
 
     #endregion
 
-    #region Serial Communication (Placeholder)
+    #region Simulation Mode (Keyboard)
+
+    private void UpdateSimulatedInput()
+    {
+        // Fire: F on / G off
+        if (Input.GetKeyDown(KeyCode.F)) isFireOn = true;
+        if (Input.GetKeyDown(KeyCode.G)) isFireOff = true;
+
+        // Water: T on / Y off (avoid WASD to prevent conflicts with FPS controllers)
+        if (Input.GetKeyDown(KeyCode.T)) isWaterOn = true;
+        if (Input.GetKeyDown(KeyCode.Y)) isWaterOff = true;
+
+        // Joystick: arrows for selection (no WASD here to avoid conflicts with FPS controllers)
+        Vector2 dir = Vector2.zero;
+        if (Input.GetKey(KeyCode.LeftArrow)) dir.x -= 1f;
+        if (Input.GetKey(KeyCode.RightArrow)) dir.x += 1f;
+        if (Input.GetKey(KeyCode.UpArrow)) dir.y += 1f;
+        if (Input.GetKey(KeyCode.DownArrow)) dir.y -= 1f;
+        joystickDirection = dir.magnitude > 0.1f ? dir.normalized : Vector2.zero;
+
+        // FSR simulated with LeftControl hold (avoid Space to prevent conflicts with Jump)
+        if (Input.GetKey(KeyCode.LeftControl))
+        {
+            panMovementIntensity = Mathf.Clamp01(panMovementIntensity + 2.0f * Time.deltaTime);
+        }
+        else
+        {
+            panMovementIntensity = Mathf.Max(0.0f, panMovementIntensity - 3.0f * Time.deltaTime);
+        }
+
+        isActive = true;
+    }
+
+    #endregion
+
+    #region OSC (Wi-Fi)
+
+    private void UpdateFromOSC()
+    {
+        if (oscReceiver == null)
+        {
+            oscReceiver = ESP32OSCReceiver.Instance != null
+                ? ESP32OSCReceiver.Instance
+                : FindFirstObjectByType<ESP32OSCReceiver>();
+        }
+
+        if (oscReceiver == null)
+        {
+            isActive = false;
+            joystickDirection = Vector2.zero;
+            panMovementIntensity = 0.0f;
+            return;
+        }
+
+        isActive = oscReceiver.IsConnected(oscTimeoutSeconds);
+        if (!isActive)
+        {
+            joystickDirection = Vector2.zero;
+            panMovementIntensity = 0.0f;
+            return;
+        }
+
+        // Water/Fire are treated as stateful booleans; we emit ON/OFF one-frame events on transitions.
+        //
+        // NOTE: /water can be either digital (0/1) or analog RAW (0..4095).
+        // For analog sensors, use waterOnThreshold + optional hysteresis (waterOffThreshold) to avoid flicker.
+        bool waterState = GetWaterStateWithThresholds(oscReceiver.water, prevWaterState);
+
+        bool fireState = oscReceiver.fire >= fireOnThreshold;
+        if (invertFire) fireState = !fireState;
+
+        isWaterOn = !prevWaterState && waterState;
+        isWaterOff = prevWaterState && !waterState;
+        prevWaterState = waterState;
+
+        isFireOn = !prevFireState && fireState;
+        isFireOff = prevFireState && !fireState;
+        prevFireState = fireState;
+
+        // Joystick (-1..1 floats) with deadzone.
+        Vector2 joy = new Vector2(oscReceiver.joyX, oscReceiver.joyY);
+        joystickDirection = joy.magnitude >= joystickDeadzone ? joy : Vector2.zero;
+
+        // FSR raw -> 0..1
+        if (fsrMaxRaw <= 0) fsrMaxRaw = 4095;
+        panMovementIntensity = Mathf.Clamp01(oscReceiver.fsr / (float)fsrMaxRaw);
+    }
+
+    private bool GetWaterStateWithThresholds(int waterRaw, bool previousState)
+    {
+        // Optional hysteresis: ON threshold higher than OFF threshold.
+        int offTh = waterOffThreshold > 0 ? waterOffThreshold : waterOnThreshold;
+        int onTh = waterOnThreshold;
+
+        bool state;
+        if (waterOffThreshold > 0)
+        {
+            // Hysteresis behavior:
+            // - if currently OFF, require waterRaw >= onTh to switch ON
+            // - if currently ON, require waterRaw <= offTh to switch OFF
+            state = previousState ? waterRaw > offTh : waterRaw >= onTh;
+        }
+        else
+        {
+            // Simple threshold.
+            state = waterRaw >= onTh;
+        }
+
+        if (invertWater) state = !state;
+        return state;
+    }
+
+    #endregion
 
     /// <summary>
     /// Initializes serial port connection to ESP32.
@@ -316,72 +450,4 @@ public class ESP32InputProvider : MonoBehaviour, IInputProvider
         //     isActive = false;
         // }
     }
-
-    #endregion
-
-    #region Simulation Mode (For Testing)
-
-    /// <summary>
-    /// Simulates ESP32 input using keyboard (for testing without hardware).
-    /// This simulates how the ESP32 would send serial commands, but using keyboard input.
-    /// Uses old Input System for compatibility (this is only for simulation/testing).
-    /// </summary>
-    private void UpdateSimulatedInput()
-    {
-        // Simulate fire sensor (from ESP32 fire sensor hardware)
-        // In real hardware: ESP32 reads digital pin and sends "FIRE:1" or "FIRE:0"
-        if (Input.GetKeyDown(KeyCode.F))
-        {
-            isFireOn = true;  // Simulates ESP32 sending "FIRE:1"
-        }
-        if (Input.GetKeyDown(KeyCode.G))
-        {
-            isFireOff = true; // Simulates ESP32 sending "FIRE:0"
-        }
-
-        // Simulate water sensor (from ESP32 water sensor hardware)
-        // In real hardware: ESP32 reads digital pin and sends "WATER:1" or "WATER:0"
-        if (Input.GetKeyDown(KeyCode.W))
-        {
-            isWaterOn = true;  // Simulates ESP32 sending "WATER:1"
-        }
-        if (Input.GetKeyDown(KeyCode.S))
-        {
-            isWaterOff = true; // Simulates ESP32 sending "WATER:0"
-        }
-
-        // Simulate analog joystick (from ESP32 analog joystick)
-        // In real hardware: ESP32 reads analog pins and sends "JOY:x,y"
-        Vector2 dir = Vector2.zero;
-        if (Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A)) dir.x -= 1f;
-        if (Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D)) dir.x += 1f;
-        if (Input.GetKey(KeyCode.UpArrow)) dir.y += 1f;
-        if (Input.GetKey(KeyCode.DownArrow)) dir.y -= 1f;
-
-        if (dir.magnitude > 0.1f)
-        {
-            joystickDirection = dir.normalized;
-        }
-        else
-        {
-            joystickDirection = Vector2.zero;
-        }
-
-        // Simulate FSR sensor (from ESP32 FSR sensor for pan movement)
-        // In real hardware: ESP32 reads analog pin and sends "FSR:0.75" (0.0 to 1.0)
-        if (Input.GetKey(KeyCode.Space))
-        {
-            // Simulate increasing pressure: hold Space to increase intensity
-            panMovementIntensity += 2.0f * Time.deltaTime;
-            panMovementIntensity = Mathf.Clamp01(panMovementIntensity);
-        }
-        else
-        {
-            // Simulate releasing pressure: intensity decreases when Space is released
-            panMovementIntensity -= 3.0f * Time.deltaTime;
-            panMovementIntensity = Mathf.Max(0.0f, panMovementIntensity);
-        }
-    }
-
-    #endregion
 }
