@@ -37,6 +37,9 @@ public class ESP32InputProvider : MonoBehaviour, IInputProvider
     [Tooltip("Raw value >= threshold means FIRE is ON (if not inverted).")]
     public int fireOnThreshold = 1;
 
+    [Tooltip("Raw value <= threshold means FIRE is OFF (hysteresis). If <= 0, hysteresis is disabled and fireOnThreshold is used for both.")]
+    public int fireOffThreshold = 0;
+
     [Tooltip("Invert water logic (useful if sensor reports 0 when active).")]
     public bool invertWater = false;
 
@@ -222,8 +225,9 @@ public class ESP32InputProvider : MonoBehaviour, IInputProvider
         // For analog sensors, use waterOnThreshold + optional hysteresis (waterOffThreshold) to avoid flicker.
         bool waterState = GetWaterStateWithThresholds(oscReceiver.water, prevWaterState);
 
-        bool fireState = oscReceiver.fire >= fireOnThreshold;
-        if (invertFire) fireState = !fireState;
+        // NOTE: /fire can also be either digital (0/1) or analog RAW (0..4095), depending on ESP32 firmware/sensor.
+        // For analog sensors, use fireOnThreshold + optional hysteresis (fireOffThreshold) to avoid "always on" at idle.
+        bool fireState = GetFireStateWithThresholds(oscReceiver.fire, prevFireState);
 
         isWaterOn = !prevWaterState && waterState;
         isWaterOff = prevWaterState && !waterState;
@@ -244,6 +248,15 @@ public class ESP32InputProvider : MonoBehaviour, IInputProvider
 
     private bool GetWaterStateWithThresholds(int waterRaw, bool previousState)
     {
+        // If ESP32 sends a digital 0/1, treat it as binary regardless of threshold settings.
+        // Convention: 1 = ON, 0 = OFF (can be flipped via invertWater).
+        if (waterRaw == 0 || waterRaw == 1)
+        {
+            bool binaryState = waterRaw >= 1;
+            if (invertWater) binaryState = !binaryState;
+            return binaryState;
+        }
+
         // Optional hysteresis: ON threshold higher than OFF threshold.
         int offTh = waterOffThreshold > 0 ? waterOffThreshold : waterOnThreshold;
         int onTh = waterOnThreshold;
@@ -263,6 +276,37 @@ public class ESP32InputProvider : MonoBehaviour, IInputProvider
         }
 
         if (invertWater) state = !state;
+        return state;
+    }
+
+    private bool GetFireStateWithThresholds(int fireRaw, bool previousState)
+    {
+        // If ESP32 sends a digital 0/1, treat it as binary regardless of threshold settings.
+        // Convention: 1 = ON, 0 = OFF (can be flipped via invertFire, e.g. active-low sensors).
+        if (fireRaw == 0 || fireRaw == 1)
+        {
+            bool binaryState = fireRaw >= 1;
+            if (invertFire) binaryState = !binaryState;
+            return binaryState;
+        }
+
+        int offTh = fireOffThreshold > 0 ? fireOffThreshold : fireOnThreshold;
+        int onTh = fireOnThreshold;
+
+        bool state;
+        if (fireOffThreshold > 0)
+        {
+            // Hysteresis:
+            // - if currently OFF, require fireRaw >= onTh to switch ON
+            // - if currently ON, require fireRaw <= offTh to switch OFF
+            state = previousState ? fireRaw > offTh : fireRaw >= onTh;
+        }
+        else
+        {
+            state = fireRaw >= onTh;
+        }
+
+        if (invertFire) state = !state;
         return state;
     }
 
