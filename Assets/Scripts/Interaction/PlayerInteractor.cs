@@ -54,49 +54,73 @@ public class PlayerInteractor : MonoBehaviour
         Vector3 origin = viewCamera.transform.position;
         Vector3 dir = viewCamera.transform.forward;
 
-        bool hitSomething;
-        RaycastHit hit;
-
+        // Different approach (no proxies): cast against EVERYTHING (or configured layers),
+        // then pick the closest hit that actually contains an IInteractable.
+        // This avoids "dead" colliders (cabinet body, counter, etc.) blocking interaction.
+        RaycastHit[] hits;
         if (sphereCastRadius > 0f)
         {
-            hitSomething = Physics.SphereCast(origin, sphereCastRadius, dir, out hit, maxDistance, interactableLayers, queryTriggers);
+            hits = Physics.SphereCastAll(origin, sphereCastRadius, dir, maxDistance, ~0, queryTriggers);
         }
         else
         {
-            hitSomething = Physics.Raycast(origin, dir, out hit, maxDistance, interactableLayers, queryTriggers);
+            hits = Physics.RaycastAll(origin, dir, maxDistance, ~0, queryTriggers);
         }
 
         if (drawDebug)
         {
-            Debug.DrawRay(origin, dir * maxDistance, hitSomething ? debugColorHit : debugColorMiss);
+            Debug.DrawRay(origin, dir * maxDistance, hits != null && hits.Length > 0 ? debugColorHit : debugColorMiss);
         }
 
-        if (!hitSomething)
+        if (hits == null || hits.Length == 0)
         {
             _current = null;
             _currentTransform = null;
             return;
         }
 
-        // Search on hit object and parents (door handle collider often sits on a child).
-        IInteractable interactable = null;
-        Transform interactableTransform = null;
+        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
-        // GetComponentInParent<IInteractable>() is not available directly for interfaces,
-        // so we scan components.
-        var components = hit.collider.GetComponentsInParent<MonoBehaviour>(true);
+        for (int h = 0; h < hits.Length; h++)
+        {
+            var col = hits[h].collider;
+            if (col == null) continue;
+
+            // Only accept objects on interactableLayers (this keeps your project-controlled whitelist),
+            // but we still "see through" non-interactable colliders that are not on those layers.
+            if (((1 << col.gameObject.layer) & interactableLayers.value) == 0) continue;
+
+            if (TryGetInteractable(col, out var ia, out var iaT))
+            {
+                _current = ia;
+                _currentTransform = iaT;
+                return;
+            }
+        }
+
+        _current = null;
+        _currentTransform = null;
+    }
+
+    private static bool TryGetInteractable(Collider col, out IInteractable interactable, out Transform interactableTransform)
+    {
+        interactable = null;
+        interactableTransform = null;
+        if (col == null) return false;
+
+        // GetComponentInParent<IInteractable>() is not available directly for interfaces, so we scan components.
+        var components = col.GetComponentsInParent<MonoBehaviour>(true);
         for (int i = 0; i < components.Length; i++)
         {
             if (components[i] is IInteractable ia)
             {
+                if (!ia.CanInteract()) return false;
                 interactable = ia;
                 interactableTransform = components[i].transform;
-                break;
+                return true;
             }
         }
-
-        _current = interactable;
-        _currentTransform = interactableTransform;
+        return false;
     }
 
     /// <summary>
