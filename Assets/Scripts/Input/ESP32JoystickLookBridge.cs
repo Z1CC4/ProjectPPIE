@@ -57,23 +57,17 @@ public class ESP32JoystickLookBridge : MonoBehaviour
     [Tooltip("ESP32 uses INPUT_PULLUP: 0=pressed, 1=released by default.")]
     public int pressedValue = 0;
 
-    [Header("JOY Reset View (optional)")]
-    [Tooltip("If true, pressing JOY will reset the view to the baseline rotations captured at Start().")]
-    public bool resetViewOnButtonPress = true;
+    [Header("JOY Interact (replaces Reset View)")]
+    [Tooltip("If true, a JOY button press will call PlayerInteractor.Interact().")]
+    public bool interactOnButtonPress = true;
 
-    [Tooltip("If assigned, yaw reset will apply to this transform. If null, will use this GameObject's transform.")]
-    public Transform playerYawRoot;
-
-    [Tooltip("If assigned, pitch reset will apply to this target's localRotation X. If null, will try to use FirstPersonController.CinemachineCameraTarget.")]
-    public Transform cameraPitchTarget;
+    [Tooltip("Interactor that will receive the Interact() call. If null, will try to find one in the scene.")]
+    public PlayerInteractor interactor;
 
     private Vector2 _smoothed;
     private Vector2 _smoothVelocity;
     private Vector2 _lastInjected;
     private int _prevButton;
-    private bool _hasBaseline;
-    private Quaternion _baselineYaw;
-    private Quaternion _baselinePitchLocal;
 
     private void Reset()
     {
@@ -86,23 +80,6 @@ public class ESP32JoystickLookBridge : MonoBehaviour
     private void Start()
     {
         _prevButton = 1 - pressedValue; // assume "not pressed" at boot
-
-        if (playerYawRoot == null)
-        {
-            playerYawRoot = transform;
-        }
-
-        if (cameraPitchTarget == null)
-        {
-            // Auto-wire to StarterAssets FirstPersonController target if present.
-            var fpc = GetComponent<StarterAssets.FirstPersonController>();
-            if (fpc != null && fpc.CinemachineCameraTarget != null)
-            {
-                cameraPitchTarget = fpc.CinemachineCameraTarget.transform;
-            }
-        }
-
-        CaptureBaseline();
     }
 
     private void OnDisable()
@@ -117,14 +94,6 @@ public class ESP32JoystickLookBridge : MonoBehaviour
 
     private void Update()
     {
-        if (!enableJoystickLook) return;
-
-        if (starterInputs == null)
-        {
-            starterInputs = GetComponent<StarterAssetsInputs>();
-            if (starterInputs == null) return;
-        }
-
         if (oscReceiver == null)
         {
             oscReceiver = ESP32OSCReceiver.Instance != null
@@ -140,28 +109,55 @@ public class ESP32JoystickLookBridge : MonoBehaviour
         }
 #endif
 
-        // Remove previous frame injection first so we don't accumulate if StarterAssets doesn't overwrite look every frame.
-        starterInputs.look -= _lastInjected;
-        _lastInjected = Vector2.zero;
+        if (interactOnButtonPress && interactor == null)
+        {
+            interactor = FindFirstObjectByType<PlayerInteractor>();
+        }
 
         if (requireOSCConnected && !oscReceiver.IsConnected(oscTimeoutSeconds))
         {
-            // When disconnected, leave only the "base" look input (mouse, etc.).
+            // When disconnected, undo any previous injection and do nothing.
+            if (starterInputs != null)
+            {
+                starterInputs.look -= _lastInjected;
+            }
+            _lastInjected = Vector2.zero;
             return;
         }
 
-        // Handle button edge (JOY press) before applying look, so reset is immediate.
-        if (resetViewOnButtonPress)
+        // Handle button edge (JOY press) even if look is disabled.
+        int btnNow = oscReceiver.joyButton;
+        bool wasPressed = _prevButton == pressedValue;
+        bool isPressed = btnNow == pressedValue;
+        if (!wasPressed && isPressed)
         {
-            int btn = oscReceiver.joyButton;
-            bool wasPressed = _prevButton == pressedValue;
-            bool isPressed = btn == pressedValue;
-            if (!wasPressed && isPressed)
+            if (interactOnButtonPress && interactor != null)
             {
-                ResetViewToBaseline();
+                interactor.Interact();
             }
-            _prevButton = btn;
         }
+        _prevButton = btnNow;
+
+        if (!enableJoystickLook)
+        {
+            // If look gets disabled at runtime, remove any leftover injection.
+            if (starterInputs != null)
+            {
+                starterInputs.look -= _lastInjected;
+            }
+            _lastInjected = Vector2.zero;
+            return;
+        }
+
+        if (starterInputs == null)
+        {
+            starterInputs = GetComponent<StarterAssetsInputs>();
+            if (starterInputs == null) return;
+        }
+
+        // Remove previous frame injection first so we don't accumulate if StarterAssets doesn't overwrite look every frame.
+        starterInputs.look -= _lastInjected;
+        _lastInjected = Vector2.zero;
 
         // Raw joystick is already normalized to about [-1..+1].
         Vector2 raw = new Vector2(oscReceiver.joyX, oscReceiver.joyY);
@@ -205,36 +201,5 @@ public class ESP32JoystickLookBridge : MonoBehaviour
         return v.magnitude < dz ? Vector2.zero : v;
     }
 
-    private void CaptureBaseline()
-    {
-        if (playerYawRoot == null || cameraPitchTarget == null) return;
-        _baselineYaw = playerYawRoot.rotation;
-        _baselinePitchLocal = cameraPitchTarget.localRotation;
-        _hasBaseline = true;
-    }
-
-    private void ResetViewToBaseline()
-    {
-        if (!_hasBaseline)
-        {
-            CaptureBaseline();
-            if (!_hasBaseline) return;
-        }
-
-        // Remove any current injection so we don't fight the reset.
-        if (starterInputs != null)
-        {
-            starterInputs.look -= _lastInjected;
-        }
-        _lastInjected = Vector2.zero;
-
-        // Reset target rotations.
-        if (playerYawRoot != null) playerYawRoot.rotation = _baselineYaw;
-        if (cameraPitchTarget != null) cameraPitchTarget.localRotation = _baselinePitchLocal;
-
-        // Reset smoothing state.
-        _smoothed = Vector2.zero;
-        _smoothVelocity = Vector2.zero;
-    }
 }
 
