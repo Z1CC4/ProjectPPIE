@@ -16,6 +16,17 @@ public class PlanarMirror : MonoBehaviour
         FromRendererBounds
     }
 
+    public enum ReflectionBehavior
+    {
+        /// <summary>
+        /// Far: freeze a static reflection (stable interior).
+        /// Near: render a true planar reflection using the player camera (so you can see yourself).
+        /// </summary>
+        StaticWhenFar_DynamicWhenNear,
+        StaticOnly,
+        DynamicOnly
+    }
+
     [Header("Mirror Target")]
     [Tooltip("Renderer that will receive the reflection texture. If null, uses Renderer on this GameObject.")]
     public Renderer mirrorRenderer;
@@ -36,6 +47,25 @@ public class PlanarMirror : MonoBehaviour
 
     [Tooltip("If enabled, uses oblique near-plane clipping to remove objects behind the mirror plane.")]
     public bool useObliqueClipping = true;
+
+    [Header("Behavior")]
+    [Tooltip("Controls how the mirror behaves at distance. Recommended: StaticWhenFar_DynamicWhenNear.")]
+    public ReflectionBehavior behavior = ReflectionBehavior.StaticWhenFar_DynamicWhenNear;
+
+    [Tooltip("Distance (in meters) at which the mirror switches to dynamic planar reflection (so you can see yourself).")]
+    public float dynamicDistance = 4.0f;
+
+    [Tooltip("Only enable dynamic reflection when the camera is on the front side of the mirror plane.")]
+    public bool dynamicOnlyWhenInFront = true;
+
+    [Tooltip("Optional reference transform used to generate the static reflection viewpoint. If null, a default point in front of the mirror is used.")]
+    public Transform staticReference;
+
+    [Tooltip("Default distance in front of the mirror used for the static reference viewpoint (when staticReference is null).")]
+    public float staticReferenceDistance = 1.5f;
+
+    [Tooltip("Layers rendered in the STATIC (far) mode. Use this to exclude the Player layer if you only want to see yourself when near.")]
+    public LayerMask staticReflectionMask = ~0;
 
     [Header("Reflection Rendering")]
     [Tooltip("Layers rendered by the reflection camera.")]
@@ -82,6 +112,7 @@ public class PlanarMirror : MonoBehaviour
     private Camera _reflectionCamera;
     private RenderTexture _reflectionTexture;
     private MaterialPropertyBlock _mpb;
+    private bool _hasStaticCapture;
 
     private static readonly int BaseMapId = Shader.PropertyToID("_BaseMap");
     private static readonly int MainTexId = Shader.PropertyToID("_MainTex");
@@ -187,11 +218,7 @@ public class PlanarMirror : MonoBehaviour
         if (camera == null) return;
         if (!renderInSceneView && camera.cameraType == CameraType.SceneView) return;
 
-        // Select which camera drives reflections.
-        Camera allowed = sourceCameraOverride != null ? sourceCameraOverride : (mainCameraOnly ? Camera.main : null);
-        bool isAllowed = allowed == null || camera == allowed;
-
-        if (!isAllowed) return;
+        if (!IsAllowedCamera(camera)) return;
 
         if (_reflectionCamera != null && camera == _reflectionCamera) return;
 
@@ -200,7 +227,42 @@ public class PlanarMirror : MonoBehaviour
 
         if (onlyWhenVisible && !IsMirrorVisibleFrom(camera)) return;
 
-        RenderReflection(context, camera);
+        if (!TryGetMirrorPlane(camera.transform.position, out var planePoint, out var planeNormal))
+        {
+            if (logWarnings) Debug.LogWarning("PlanarMirror: could not compute mirror plane.", this);
+            return;
+        }
+
+        float viewerSide = Vector3.Dot(planeNormal, camera.transform.position - planePoint);
+        float viewerDist = Vector3.Distance(camera.transform.position, planePoint);
+
+        bool dynamicAllowed = behavior != ReflectionBehavior.StaticOnly;
+        bool staticAllowed = behavior != ReflectionBehavior.DynamicOnly;
+
+        bool shouldRenderDynamic = dynamicAllowed &&
+                                  (behavior == ReflectionBehavior.DynamicOnly ||
+                                   (behavior == ReflectionBehavior.StaticWhenFar_DynamicWhenNear && viewerDist <= Mathf.Max(0.01f, dynamicDistance)));
+
+        if (shouldRenderDynamic && dynamicOnlyWhenInFront && viewerSide <= 0f)
+        {
+            shouldRenderDynamic = false;
+        }
+
+        if (shouldRenderDynamic)
+        {
+            _hasStaticCapture = false; // force a new static capture next time we go static
+            RenderDynamicReflection(context, camera, planePoint, planeNormal);
+            return;
+        }
+
+        if (!staticAllowed) return;
+
+        // Static/frozen: capture once, then keep it.
+        if (!_hasStaticCapture)
+        {
+            RenderStaticReflection(context, camera, planePoint, planeNormal);
+            _hasStaticCapture = true;
+        }
     }
 
     private bool IsMirrorVisibleFrom(Camera cam)
@@ -209,19 +271,78 @@ public class PlanarMirror : MonoBehaviour
         return GeometryUtility.TestPlanesAABB(planes, mirrorRenderer.bounds);
     }
 
-    private void RenderReflection(ScriptableRenderContext context, Camera sourceCamera)
+    private void RenderDynamicReflection(ScriptableRenderContext context, Camera sourceCamera, Vector3 planePoint, Vector3 planeNormal)
     {
-        if (!TryGetMirrorPlane(sourceCamera, out var planePoint, out var planeNormal))
+        ConfigureReflectionCamera(sourceCamera, reflectionMask);
+
+        // Reflection matrix around plane.
+        float d = -Vector3.Dot(planeNormal, planePoint) - clipPlaneOffset;
+        Vector4 plane = new Vector4(planeNormal.x, planeNormal.y, planeNormal.z, d);
+        Matrix4x4 refl = CalculateReflectionMatrix(plane);
+
+        Matrix4x4 worldToCamera = sourceCamera.worldToCameraMatrix * refl;
+        ApplyViewAndProjection(sourceCamera, worldToCamera);
+
+        if (useObliqueClipping)
         {
-            if (logWarnings) Debug.LogWarning("PlanarMirror: could not compute mirror plane.", this);
-            return;
+            float sideSign = Vector3.Dot(planeNormal, sourceCamera.transform.position - planePoint) >= 0f ? 1f : -1f;
+            Vector4 clip = CameraSpacePlane(ref worldToCamera, planePoint, planeNormal, sideSign, clipPlaneOffset);
+            _reflectionCamera.projectionMatrix = _reflectionCamera.CalculateObliqueMatrix(clip);
         }
 
-        _reflectionCamera.CopyFrom(sourceCamera);
+        RenderOnce(context);
+    }
+
+    private void RenderStaticReflection(ScriptableRenderContext context, Camera sourceCamera, Vector3 planePoint, Vector3 planeNormal)
+    {
+        Vector3 viewerPos;
+        Quaternion viewerRot;
+
+        if (staticReference != null)
+        {
+            viewerPos = staticReference.position;
+            viewerRot = staticReference.rotation;
+        }
+        else
+        {
+            viewerPos = planePoint + planeNormal * Mathf.Max(0.05f, staticReferenceDistance);
+            viewerRot = Quaternion.LookRotation(-planeNormal, Vector3.up);
+        }
+
+        Matrix4x4 virtualWorldToCamera = Matrix4x4.TRS(viewerPos, viewerRot, Vector3.one).inverse;
+
+        ConfigureReflectionCamera(sourceCamera, staticReflectionMask);
+
+        float d = -Vector3.Dot(planeNormal, planePoint) - clipPlaneOffset;
+        Vector4 plane = new Vector4(planeNormal.x, planeNormal.y, planeNormal.z, d);
+        Matrix4x4 refl = CalculateReflectionMatrix(plane);
+
+        Matrix4x4 worldToCamera = virtualWorldToCamera * refl;
+        ApplyViewAndProjection(sourceCamera, worldToCamera);
+
+        if (useObliqueClipping)
+        {
+            float sideSign = Vector3.Dot(planeNormal, viewerPos - planePoint) >= 0f ? 1f : -1f;
+            Vector4 clip = CameraSpacePlane(ref worldToCamera, planePoint, planeNormal, sideSign, clipPlaneOffset);
+            _reflectionCamera.projectionMatrix = _reflectionCamera.CalculateObliqueMatrix(clip);
+        }
+
+        RenderOnce(context);
+    }
+
+    private bool IsAllowedCamera(Camera camera)
+    {
+        Camera allowed = sourceCameraOverride != null ? sourceCameraOverride : (mainCameraOnly ? Camera.main : null);
+        return allowed == null || camera == allowed;
+    }
+
+    private void ConfigureReflectionCamera(Camera template, LayerMask mask)
+    {
+        _reflectionCamera.CopyFrom(template);
         _reflectionCamera.enabled = false;
         _reflectionCamera.useOcclusionCulling = useOcclusionCulling;
         _reflectionCamera.targetTexture = _reflectionTexture;
-        _reflectionCamera.cullingMask = reflectionMask;
+        _reflectionCamera.cullingMask = mask;
 
         if (overrideFarClipPlane && reflectionFarClipPlane > 0.01f)
         {
@@ -236,14 +357,12 @@ public class PlanarMirror : MonoBehaviour
                 _reflectionCamera.backgroundColor = reflectionBackgroundColor;
             }
         }
+    }
 
-        // Reflection matrix around plane.
-        float d = -Vector3.Dot(planeNormal, planePoint) - clipPlaneOffset;
-        Vector4 plane = new Vector4(planeNormal.x, planeNormal.y, planeNormal.z, d);
-        Matrix4x4 refl = CalculateReflectionMatrix(plane);
-
-        Matrix4x4 worldToCamera = sourceCamera.worldToCameraMatrix * refl;
+    private void ApplyViewAndProjection(Camera sourceCamera, Matrix4x4 worldToCamera)
+    {
         _reflectionCamera.worldToCameraMatrix = worldToCamera;
+        _reflectionCamera.projectionMatrix = sourceCamera.projectionMatrix;
 
         // Keep transform consistent for culling/skybox heuristics.
         Matrix4x4 camToWorld = worldToCamera.inverse;
@@ -254,21 +373,14 @@ public class PlanarMirror : MonoBehaviour
         {
             _reflectionCamera.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(forward, up));
         }
+    }
 
-        _reflectionCamera.projectionMatrix = sourceCamera.projectionMatrix;
-
-        if (useObliqueClipping)
-        {
-            float sideSign = Vector3.Dot(planeNormal, sourceCamera.transform.position - planePoint) >= 0f ? 1f : -1f;
-            Vector4 clip = CameraSpacePlane(ref worldToCamera, planePoint, planeNormal, sideSign, clipPlaneOffset);
-            _reflectionCamera.projectionMatrix = _reflectionCamera.CalculateObliqueMatrix(clip);
-        }
-
+    private void RenderOnce(ScriptableRenderContext context)
+    {
         bool prevInvert = GL.invertCulling;
         GL.invertCulling = true;
         bool prevEnabled = mirrorRenderer.enabled;
         mirrorRenderer.enabled = false;
-
         try
         {
             UniversalRenderPipeline.RenderSingleCamera(context, _reflectionCamera);
@@ -280,7 +392,7 @@ public class PlanarMirror : MonoBehaviour
         }
     }
 
-    private bool TryGetMirrorPlane(Camera sourceCamera, out Vector3 point, out Vector3 normal)
+    private bool TryGetMirrorPlane(Vector3 viewerPosition, out Vector3 point, out Vector3 normal)
     {
         point = Vector3.zero;
         normal = Vector3.forward;
@@ -318,7 +430,7 @@ public class PlanarMirror : MonoBehaviour
 
         // For clipping we want the normal that faces the camera; reflection matrix is invariant under sign,
         // but clip side selection relies on it.
-        if (Vector3.Dot(normal, sourceCamera.transform.position - point) < 0f)
+        if (Vector3.Dot(normal, viewerPosition - point) < 0f)
         {
             normal = -normal;
         }
