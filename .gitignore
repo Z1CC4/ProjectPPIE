@@ -30,3 +30,11 @@ Desktop.ini
 # Optional: crash reports / backups
 sysinfo.txt
 
+# Cursor / agent scratch
+.cursor/
+
+# Imported asset packs (too large for git)
+Assets/GeniusCrate_Games/
+Assets/LoafbrrAssets/
+Assets/MinimalistBedroom/
+
