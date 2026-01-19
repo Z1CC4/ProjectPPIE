@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: f8f27710acee93241a41ce46a5b106bf
+timeCreated: 1433180129
+licenseType: Store
+ShaderImporter:
+  defaultTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 34824
+  packageName: Magic Mirror Lite - Reflection for Unity
+  packageVersion: 1.2.0
+  assetPath: Assets/MagicMirror/Prefab/MirrorShaderOld.shader
+  uploadId: 243406

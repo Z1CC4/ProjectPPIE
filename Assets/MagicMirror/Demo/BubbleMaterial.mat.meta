@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: b950759616a34b54682a848174608396
+timeCreated: 1429140547
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 34824
+  packageName: Magic Mirror Lite - Reflection for Unity
+  packageVersion: 1.2.0
+  assetPath: Assets/MagicMirror/Demo/BubbleMaterial.mat
+  uploadId: 243406

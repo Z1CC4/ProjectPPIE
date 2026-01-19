@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: d9eaa94ef39cab84b9f7c7c1b51cf0af
+timeCreated: 1432866211
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 34824
+  packageName: Magic Mirror Lite - Reflection for Unity
+  packageVersion: 1.2.0
+  assetPath: Assets/MagicMirror/Prefab/MirrorMaterialBumpMap.mat
+  uploadId: 243406

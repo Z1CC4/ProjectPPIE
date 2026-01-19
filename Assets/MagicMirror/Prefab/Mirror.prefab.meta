@@ -1,0 +1,23 @@
+fileFormatVersion: 2
+guid: 977d462d3da090443aa549827d636355
+labels:
+- Mirror
+- Reflection
+- Camera
+- Shiny
+- Fogged
+- Film
+- Magic
+timeCreated: 1429139875
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 34824
+  packageName: Magic Mirror Lite - Reflection for Unity
+  packageVersion: 1.2.0
+  assetPath: Assets/MagicMirror/Prefab/Mirror.prefab
+  uploadId: 243406

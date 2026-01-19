@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 1ce49965b4f65fb4e8f1fedc56784c68
+timeCreated: 1433170512
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 34824
+  packageName: Magic Mirror Lite - Reflection for Unity
+  packageVersion: 1.2.0
+  assetPath: Assets/MagicMirror/Prefab/MirrorChild.prefab
+  uploadId: 243406
