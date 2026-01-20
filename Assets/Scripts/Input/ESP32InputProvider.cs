@@ -3,45 +3,32 @@ using UnityEngine;
 public class ESP32InputProvider : MonoBehaviour, IInputProvider
 {
     [Header("ESP32 Connection Settings")]
-    [Tooltip("Enable ESP32 input (set to false to disable even if connected)")]
     public bool enableESP32Input = false;
 
     [Header("OSC (Wi-Fi) Settings")]
-    [Tooltip("Use OSC input coming from ESP32OSCReceiver (Wi-Fi).")]
     public bool useOSC = true;
 
-    [Tooltip("Receiver component that stores latest OSC values from the ESP32.")]
     public ESP32OSCReceiver oscReceiver;
 
-    [Tooltip("If no OSC messages arrive for this many seconds, consider disconnected.")]
     public float oscTimeoutSeconds = 1.5f;
 
-    [Tooltip("Raw value >= threshold means WATER is ON (if not inverted).")]
     public int waterOnThreshold = 1;
 
-    [Tooltip("Raw value <= threshold means WATER is OFF (hysteresis). If <= 0, hysteresis is disabled and waterOnThreshold is used for both.")]
     public int waterOffThreshold = 0;
 
-    [Tooltip("Raw value >= threshold means FIRE is ON (if not inverted).")]
     public int fireOnThreshold = 1;
 
-    [Tooltip("Raw value <= threshold means FIRE is OFF (hysteresis). If <= 0, hysteresis is disabled and fireOnThreshold is used for both.")]
     public int fireOffThreshold = 0;
 
-    [Tooltip("Invert water logic (useful if sensor reports 0 when active).")]
     public bool invertWater = false;
 
-    [Tooltip("Invert fire logic (useful if sensor reports 0 when active).")]
     public bool invertFire = true;
 
-    [Tooltip("Max raw FSR value from ESP32 ADC (used to normalize to 0..1).")]
     public int fsrMaxRaw = 4095;
 
-    [Tooltip("Joystick deadzone for OSC joystick (-1..1).")]
     [Range(0.0f, 1.0f)]
     public float joystickDeadzone = 0.15f;
 
-    [Tooltip("Simulate ESP32 input using keyboard (for testing without hardware)")]
     public bool simulateWithKeyboard = false;
 
     private bool isFireOn;

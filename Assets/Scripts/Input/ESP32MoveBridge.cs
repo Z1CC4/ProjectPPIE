@@ -7,10 +7,8 @@ public class ESP32MoveBridge : MonoBehaviour
     public bool enableMove = true;
 
     [Header("Sources")]
-    [Tooltip("OSC receiver that holds the latest /move values. If null, will try to auto-find.")]
     public ESP32OSCReceiver oscReceiver;
 
-    [Tooltip("StarterAssets input component to inject move into. If null, will try to use one on the same GameObject.")]
     public StarterAssetsInputs starterInputs;
 
     [Header("Connection Gate (optional)")]
@@ -18,16 +16,12 @@ public class ESP32MoveBridge : MonoBehaviour
     public float oscTimeoutSeconds = 1.5f;
 
     [Header("Button Mapping")]
-    [Tooltip("If true, any non-zero value is treated as pressed.")]
     public bool treatNonZeroAsPressed = true;
 
-    [Tooltip("If treatNonZeroAsPressed is false, this exact value is treated as pressed.")]
     public int pressedValue = 1;
 
-    [Tooltip("Multiplier applied to resulting move vector. 1 = normal. Use -1 to invert both axes.")]
     public float moveSensitivity = 1f;
 
-    [Tooltip("If true, diagonal input is normalized (so speed is not faster on diagonals).")]
     public bool normalizeDiagonal = true;
 
     private Vector2 _lastInjected;

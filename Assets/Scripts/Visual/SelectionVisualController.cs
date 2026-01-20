@@ -3,17 +3,13 @@ using UnityEngine;
 public class SelectionVisualController : MonoBehaviour
 {
     [Header("Selection Visual")]
-    [Tooltip("Cursor/indicator GameObject that follows the selected object")]
     public GameObject selectionCursor;
 
-    [Tooltip("Offset from object position for cursor placement")]
     public Vector3 cursorOffset = new Vector3(0, 1, 0);
 
-    [Tooltip("Smooth movement speed for cursor (0 = instant)")]
     public float cursorMoveSpeed = 10f;
 
     [Header("Settings")]
-    [Tooltip("Hide cursor when no object is selected")]
     public bool hideWhenNoSelection = true;
 
     private KitchenState kitchenState;

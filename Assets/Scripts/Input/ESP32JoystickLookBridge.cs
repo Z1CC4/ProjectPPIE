@@ -10,14 +10,11 @@ public class ESP32JoystickLookBridge : MonoBehaviour
     public bool enableJoystickLook = true;
 
     [Header("Sources")]
-    [Tooltip("OSC receiver that holds the latest /joystick values. If null, will try to auto-find.")]
     public ESP32OSCReceiver oscReceiver;
 
-    [Tooltip("StarterAssets input component to inject look into. If null, will try to use one on the same GameObject.")]
     public StarterAssetsInputs starterInputs;
 
 #if ENABLE_INPUT_SYSTEM
-    [Tooltip("Optional: used to match StarterAssets' 'KeyboardMouse' deltaTime behavior.")]
     public PlayerInput playerInput;
 #endif
 
@@ -29,32 +26,24 @@ public class ESP32JoystickLookBridge : MonoBehaviour
     [Range(0f, 1f)]
     public float deadzone = 0.20f;
 
-    [Tooltip("If true, swap X and Y coming from /joystick (useful if axes are wired/encoded swapped).")]
     public bool swapXY = false;
 
-    [Tooltip("If true, invert X (left/right).")]
     public bool invertX = false;
 
-    [Tooltip("If true, invert Y (useful if pushing up should look up but feels reversed).")]
     public bool invertY = false;
 
-    [Tooltip("Units injected into StarterAssetsInputs.look. Higher = faster camera rotation.")]
     public float lookSensitivity = 250f;
 
-    [Tooltip("Smooth time (seconds). 0 = no smoothing.")]
     [Range(0f, 0.5f)]
     public float smoothingTime = 0.08f;
 
     [Header("Button (optional)")]
     public bool onlyWhenButtonPressed = false;
-    [Tooltip("ESP32 uses INPUT_PULLUP: 0=pressed, 1=released by default.")]
     public int pressedValue = 0;
 
     [Header("JOY Interact (replaces Reset View)")]
-    [Tooltip("If true, a JOY button press will call PlayerInteractor.Interact().")]
     public bool interactOnButtonPress = true;
 
-    [Tooltip("Interactor that will receive the Interact() call. If null, will try to find one in the scene.")]
     public PlayerInteractor interactor;
 
     private Vector2 _smoothed;

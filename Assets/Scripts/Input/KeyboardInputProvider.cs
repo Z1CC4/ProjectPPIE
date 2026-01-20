@@ -4,37 +4,27 @@ using UnityEngine.InputSystem;
 public class KeyboardInputProvider : MonoBehaviour, IInputProvider
 {
     [Header("Keyboard Input Settings")]
-    [Tooltip("Key to turn fire ON")]
     public Key fireOnKey = Key.F;
 
-    [Tooltip("Key to turn fire OFF")]
     public Key fireOffKey = Key.G;
 
-    [Tooltip("Key to turn water ON")]
     public Key waterOnKey = Key.W;
 
-    [Tooltip("Key to turn water OFF")]
     public Key waterOffKey = Key.S;
 
     [Header("Joystick Simulation")]
-    [Tooltip("Use WASD for joystick (alternative to arrow keys)")]
     public bool useWASD = true;
 
-    [Tooltip("Joystick movement speed (how fast selection moves)")]
     public float joystickSensitivity = 1.0f;
 
     [Header("Pan Movement (FSR Simulation)")]
-    [Tooltip("Key to hold for pan movement (simulates FSR pressure)")]
     public Key panMoveKey = Key.Space;
 
-    [Tooltip("Maximum movement intensity when key is held (0.0 to 1.0)")]
     [Range(0.0f, 1.0f)]
     public float maxPanIntensity = 1.0f;
 
-    [Tooltip("How quickly intensity increases when key is held (per second)")]
     public float panIntensityIncreaseRate = 2.0f;
 
-    [Tooltip("How quickly intensity decreases when key is released (per second)")]
     public float panIntensityDecreaseRate = 3.0f;
 
     private Vector2 currentJoystickDirection = Vector2.zero;

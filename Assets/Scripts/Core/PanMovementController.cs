@@ -3,31 +3,23 @@ using UnityEngine;
 public class PanMovementController : MonoBehaviour
 {
     [Header("Pan Settings")]
-    [Tooltip("Reference to the pan GameObject that will be animated")]
     public Transform panTransform;
 
-    [Tooltip("The stove/fire position (pan will move relative to this)")]
     public Transform stovePosition;
 
     [Header("Movement Settings")]
-    [Tooltip("Maximum movement radius (how far the pan can move from center)")]
     public float movementRadius = 0.15f;
 
-    [Tooltip("Maximum movement speed (rotations per second at intensity = 1.0)")]
     public float maxSpeed = 2.0f;
 
-    [Tooltip("Movement pattern: Circular or BackAndForth")]
     public MovementPattern pattern = MovementPattern.Circular;
 
     [Header("Back and Forth Settings")]
-    [Tooltip("Direction for back-and-forth movement (X = left/right, Z = forward/back)")]
     public Vector3 backAndForthDirection = Vector3.right;
 
     [Header("Animation Smoothing")]
-    [Tooltip("How quickly the pan accelerates/decelerates to target speed")]
     public float accelerationRate = 5.0f;
 
-    [Tooltip("Minimum intensity threshold to start moving (dead zone)")]
     [Range(0.0f, 0.1f)]
     public float minIntensityThreshold = 0.05f;
 

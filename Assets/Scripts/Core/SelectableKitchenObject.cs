@@ -3,14 +3,11 @@ using UnityEngine;
 public class SelectableKitchenObject : MonoBehaviour
 {
     [Header("Selection Settings")]
-    [Tooltip("Display name for this object (shown in debug logs)")]
     public string displayName = "";
 
-    [Tooltip("Priority for selection (higher = selected first when multiple objects are in same direction)")]
     public int selectionPriority = 0;
 
     [Header("Visual Feedback")]
-    [Tooltip("Optional: GameObject to highlight when selected (e.g., outline, glow effect)")]
     public GameObject highlightObject;
 
     private bool isSelected = false;

@@ -3,14 +3,11 @@ using UnityEngine;
 public class PlayerPanHolder : MonoBehaviour
 {
     [Header("Pan Settings")]
-    [Tooltip("The pan GameObject that the player can hold")]
     public GameObject panObject;
 
     [Header("Interaction Settings")]
-    [Tooltip("Maximum distance to pick up or interact with pan")]
     public float interactionDistance = 2.0f;
 
-    [Tooltip("Key to pick up/drop pan (when using keyboard)")]
     public KeyCode pickupKey = KeyCode.E;
 
     private bool isHoldingPan = false;

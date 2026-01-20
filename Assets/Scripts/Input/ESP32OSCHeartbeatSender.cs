@@ -9,17 +9,13 @@ public class ESP32OSCHeartbeatSender : MonoBehaviour
     public int esp32Port = 6666;
 
     [Header("Heartbeat")]
-    [Tooltip("Seconds between heartbeats (e.g. 0.5 = every 500ms).")]
     public float intervalSeconds = 0.5f;
 
-    [Tooltip("If true, starts sending immediately on play.")]
     public bool autoStart = true;
 
     [Header("Optional")]
-    [Tooltip("If assigned, heartbeat can be gated on receiver activity.")]
     public ESP32OSCReceiver receiver;
 
-    [Tooltip("If true, only sends heartbeats while receiving OSC recently.")]
     public bool onlyWhenReceiving = false;
 
     private OSCTransmitter transmitter;

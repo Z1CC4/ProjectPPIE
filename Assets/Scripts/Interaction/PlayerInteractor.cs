@@ -3,17 +3,14 @@ using UnityEngine;
 public class PlayerInteractor : MonoBehaviour
 {
     [Header("Raycast Source")]
-    [Tooltip("If null, will use Camera.main.")]
     public Camera viewCamera;
 
     [Header("Raycast Settings")]
     public float maxDistance = 2.0f;
     public LayerMask interactableLayers = ~0;
 
-    [Tooltip("Small sphere radius to make interaction more forgiving than a thin ray.")]
     public float sphereCastRadius = 0.08f;
 
-    [Tooltip("If your interactable colliders are triggers, set this to Collide.")]
     public QueryTriggerInteraction queryTriggers = QueryTriggerInteraction.Ignore;
 
     private IInteractable _current;

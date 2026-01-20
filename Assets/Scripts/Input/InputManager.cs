@@ -3,14 +3,11 @@ using UnityEngine;
 public class InputManager : MonoBehaviour
 {
     [Header("Input Providers")]
-    [Tooltip("Keyboard input provider (always available)")]
     [SerializeField] private KeyboardInputProvider keyboardInput;
 
-    [Tooltip("ESP32 input provider (optional, for future use)")]
     [SerializeField] private ESP32InputProvider esp32Input;
 
     [Header("Settings")]
-    [Tooltip("Priority: if ESP32 is connected, use it instead of keyboard")]
     public bool preferESP32WhenAvailable = true;
 
     private IInputProvider activeInputProvider;

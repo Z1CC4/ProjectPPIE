@@ -5,43 +5,32 @@ using StarterAssets;
 public class PlayerBedInteractor : MonoBehaviour
 {
     [Header("Input")]
-    [Tooltip("Key del joystick da usare (consigliato se non vuoi configurare l'Input Manager).")]
     public KeyCode joyKey = KeyCode.JoystickButton0;
 
-    [Tooltip("Se hai configurato Project Settings > Input Manager con un bottone chiamato così, puoi usarlo. Se vuoto, viene ignorato.")]
     public string joyButtonName = "JOY";
 
     [Header("ESP32 OSC (progetto TUTTO)")]
-    [Tooltip("Se usi l'ESP32 (come per frigo/oggetti), qui puoi leggere il joyButton direttamente.")]
     public ESP32OSCReceiver oscReceiver;
 
-    [Tooltip("ESP32 usa INPUT_PULLUP: 0=pressed, 1=released di default.")]
     public int oscPressedValue = 0;
 
-    [Tooltip("Se true, il JOY via OSC funziona solo quando l'OSC è connesso.")]
     public bool requireOscConnected = true;
 
     public float oscTimeoutSeconds = 1.5f;
 
     [Header("Disable while lying")]
-    [Tooltip("Componenti da disabilitare quando sei sdraiato (es. StarterAssets FirstPersonController, mouse/gamepad look, ecc.).")]
     public Behaviour[] disableWhileLying;
 
-    [Tooltip("Se presente, viene disabilitato durante lo sdraio/alzata per evitare collisioni strane.")]
     public CharacterController characterController;
 
-    [Tooltip("Se usi un Rigidbody sul player, verrà messo in kinematic durante lo sdraio.")]
     public Rigidbody rigidbodyToFreeze;
 
     [Header("While lying")]
-    [Tooltip("Se true, mentre sei a letto la posizione del player viene tenuta bloccata sul layTarget (impedisce di camminare/cadere), ma la vista resta libera.")]
     public bool lockPositionToLayTarget = true;
 
-    [Tooltip("Se assegnato (Starter Assets), durante lo sdraio blocca SOLO il movimento (move/jump/sprint) lasciando la vista libera.")]
     public StarterAssetsInputs starterAssetsInputs;
 
     [Header("Optional")]
-    [Tooltip("Se assegnato, il player verrà mosso/ruotato su questo transform invece che su 'this.transform'.")]
     public Transform playerRootOverride;
 
     private BedLaySpot _bedInRange;
@@ -126,6 +115,7 @@ public class PlayerBedInteractor : MonoBehaviour
 
     private bool JoyPressedThisFrame()
     {
+#if ENABLE_LEGACY_INPUT_MANAGER
         if (Input.GetKeyDown(joyKey))
             return true;
 
@@ -140,6 +130,7 @@ public class PlayerBedInteractor : MonoBehaviour
             {
             }
         }
+#endif
 
         if (oscReceiver == null)
         {

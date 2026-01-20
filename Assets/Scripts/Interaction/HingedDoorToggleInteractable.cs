@@ -4,14 +4,11 @@ using UnityEngine;
 public class HingedDoorToggleInteractable : MonoBehaviour, IInteractable
 {
     [Header("Target")]
-    [Tooltip("The transform that rotates. Often the door GameObject/pivot.")]
     public Transform door;
 
     [Header("Rotation")]
-    [Tooltip("Door local rotation when closed.")]
     public Vector3 closedLocalEuler = Vector3.zero;
 
-    [Tooltip("Door local rotation when open.")]
     public Vector3 openLocalEuler = new Vector3(0f, 90f, 0f);
 
     [Header("Timing")]

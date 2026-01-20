@@ -18,72 +18,51 @@ public class PlanarMirror : MonoBehaviour
     }
 
     [Header("Mirror Target")]
-    [Tooltip("Renderer that will receive the reflection texture. If null, uses Renderer on this GameObject.")]
     public Renderer mirrorRenderer;
 
     [Header("Camera Source")]
-    [Tooltip("If set, reflections render only when this camera is rendering.")]
     public Camera sourceCameraOverride;
 
-    [Tooltip("If true and no override is set, reflections render only for Camera.main.")]
     public bool mainCameraOnly = true;
 
     [Header("Mirror Plane")]
-    [Tooltip("How the mirror plane is computed.")]
     public PlaneDerivation planeDerivation = PlaneDerivation.FromMeshPlane;
 
-    [Tooltip("Extra offset along plane normal for clipping / z-fight control.")]
     public float clipPlaneOffset = 0.07f;
 
-    [Tooltip("If enabled, uses oblique near-plane clipping to remove objects behind the mirror plane.")]
     public bool useObliqueClipping = true;
 
     [Header("Behavior")]
-    [Tooltip("Controls how the mirror behaves at distance. Recommended: StaticWhenFar_DynamicWhenNear.")]
     public ReflectionBehavior behavior = ReflectionBehavior.StaticWhenFar_DynamicWhenNear;
 
-    [Tooltip("Distance (in meters) at which the mirror switches to dynamic planar reflection (so you can see yourself).")]
     public float dynamicDistance = 4.0f;
 
-    [Tooltip("Only enable dynamic reflection when the camera is on the front side of the mirror plane.")]
     public bool dynamicOnlyWhenInFront = true;
 
-    [Tooltip("Optional reference transform used to generate the static reflection viewpoint. If null, a default point in front of the mirror is used.")]
     public Transform staticReference;
 
-    [Tooltip("Default distance in front of the mirror used for the static reference viewpoint (when staticReference is null).")]
     public float staticReferenceDistance = 1.5f;
 
-    [Tooltip("Layers rendered in the STATIC (far) mode. Use this to exclude the Player layer if you only want to see yourself when near.")]
     public LayerMask staticReflectionMask = ~0;
 
     [Header("Reflection Rendering")]
-    [Tooltip("Layers rendered by the reflection camera.")]
     public LayerMask reflectionMask = ~0;
 
-    [Tooltip("Override reflection camera far clip plane (useful to avoid reflecting 'outside' when the reflected camera ends up behind walls).")]
     public bool overrideFarClipPlane = true;
 
-    [Tooltip("Far clip plane used by the reflection camera when overrideFarClipPlane is enabled.")]
     public float reflectionFarClipPlane = 35f;
 
-    [Tooltip("If enabled, overrides the reflection camera clear flags (e.g., to avoid rendering the skybox as 'outside world').")]
     public bool overrideClearFlags = true;
 
-    [Tooltip("Clear flags for the reflection camera when overrideClearFlags is enabled.")]
     public CameraClearFlags reflectionClearFlags = CameraClearFlags.SolidColor;
 
-    [Tooltip("Background color for the reflection camera when using SolidColor clear flags.")]
     public Color reflectionBackgroundColor = Color.black;
 
-    [Tooltip("Texture resolution (square).")]
     public int textureSize = 1024;
 
-    [Tooltip("MSAA samples for the reflection texture. 1 disables MSAA.")]
     public int msaaSamples = 1;
 
     [Header("Material Output")]
-    [Tooltip("Tint multiplied with reflection. Keep white for a clean mirror.")]
     public Color reflectionTint = Color.white;
 
     [Range(0f, 2f)]

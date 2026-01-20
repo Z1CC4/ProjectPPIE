@@ -3,17 +3,13 @@ using UnityEngine;
 public class FireVisualController : MonoBehaviour
 {
     [Header("Fire Visual Effects")]
-    [Tooltip("Particle system for fire effect (e.g., flames)")]
     public ParticleSystem fireParticles;
 
-    [Tooltip("Light component for fire glow (optional)")]
     public Light fireLight;
 
-    [Tooltip("GameObject to enable/disable when fire is on (e.g., fire mesh or VFX prefab like VFX_Fire_Floor_02_Simple)")]
     public GameObject fireMesh;
 
     [Header("Settings")]
-    [Tooltip("Intensity of fire light when on")]
     public float fireLightIntensity = 2.0f;
 
     private float originalLightIntensity = 0f;
