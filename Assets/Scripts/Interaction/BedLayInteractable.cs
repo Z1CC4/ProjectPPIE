@@ -1,9 +1,5 @@
 using UnityEngine;
 
-/// <summary>
-/// Rende il letto compatibile col sistema già presente (PlayerInteractor + IInteractable).
-/// Così il JOY che usi per frigo/porte funziona anche per sdraiarsi.
-/// </summary>
 public class BedLayInteractable : MonoBehaviour, IInteractable
 {
     [Header("Setup")]

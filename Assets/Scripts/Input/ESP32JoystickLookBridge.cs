@@ -4,13 +4,6 @@ using StarterAssets;
 using UnityEngine.InputSystem;
 #endif
 
-/// <summary>
-/// Bridges ESP32 OSC joystick (/joystick X Y Button) into StarterAssets FirstPersonController look input.
-///
-/// - Does NOT touch movement keys (WASD), sprint (Shift) or jump (Space).
-/// - Injects into StarterAssetsInputs.look in a non-accumulating way (subtracts previous injection first).
-/// - Adds optional deadzone + smoothing to reduce drift and jitter at low OSC rates (e.g., 16 Hz).
-/// </summary>
 public class ESP32JoystickLookBridge : MonoBehaviour
 {
     [Header("Enable")]
@@ -79,12 +72,11 @@ public class ESP32JoystickLookBridge : MonoBehaviour
 
     private void Start()
     {
-        _prevButton = 1 - pressedValue; // assume "not pressed" at boot
+        _prevButton = 1 - pressedValue;
     }
 
     private void OnDisable()
     {
-        // Undo our last injection so we don't leave a stuck look value behind.
         if (starterInputs != null)
         {
             starterInputs.look -= _lastInjected;
@@ -116,7 +108,6 @@ public class ESP32JoystickLookBridge : MonoBehaviour
 
         if (requireOSCConnected && !oscReceiver.IsConnected(oscTimeoutSeconds))
         {
-            // When disconnected, undo any previous injection and do nothing.
             if (starterInputs != null)
             {
                 starterInputs.look -= _lastInjected;
@@ -125,7 +116,6 @@ public class ESP32JoystickLookBridge : MonoBehaviour
             return;
         }
 
-        // Handle button edge (JOY press) even if look is disabled.
         int btnNow = oscReceiver.joyButton;
         bool wasPressed = _prevButton == pressedValue;
         bool isPressed = btnNow == pressedValue;
@@ -140,7 +130,6 @@ public class ESP32JoystickLookBridge : MonoBehaviour
 
         if (!enableJoystickLook)
         {
-            // If look gets disabled at runtime, remove any leftover injection.
             if (starterInputs != null)
             {
                 starterInputs.look -= _lastInjected;
@@ -155,11 +144,9 @@ public class ESP32JoystickLookBridge : MonoBehaviour
             if (starterInputs == null) return;
         }
 
-        // Remove previous frame injection first so we don't accumulate if StarterAssets doesn't overwrite look every frame.
         starterInputs.look -= _lastInjected;
         _lastInjected = Vector2.zero;
 
-        // Raw joystick is already normalized to about [-1..+1].
         Vector2 raw = new Vector2(oscReceiver.joyX, oscReceiver.joyY);
         if (swapXY) raw = new Vector2(raw.y, raw.x);
         if (invertX) raw.x = -raw.x;
@@ -179,8 +166,6 @@ public class ESP32JoystickLookBridge : MonoBehaviour
 
         _smoothed = injected;
 
-        // StarterAssets FirstPersonController special-cases "KeyboardMouse" by NOT multiplying by deltaTime.
-        // To keep a consistent feel, we scale by deltaTime for that scheme only.
 #if ENABLE_INPUT_SYSTEM
         bool treatAsMouse = playerInput != null && playerInput.currentControlScheme == "KeyboardMouse";
 #else

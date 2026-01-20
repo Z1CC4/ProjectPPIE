@@ -1,16 +1,6 @@
 using UnityEngine;
 using StarterAssets;
 
-/// <summary>
-/// Bridges ESP32 OSC digital movement buttons (/move L R F B) into StarterAssets FirstPersonController movement.
-///
-/// Expected OSC address:
-/// - "/move" with 4 int values: Left, Right, Forward, Back
-/// Values are usually 0/1 (or 0=pressed,1=released with INPUT_PULLUP). Configure pressed logic below.
-///
-/// This component injects into StarterAssetsInputs.move in a non-accumulating way (removes previous injection first),
-/// so mouse/keyboard input can still work (optional).
-/// </summary>
 public class ESP32MoveBridge : MonoBehaviour
 {
     [Header("Enable")]
@@ -49,7 +39,6 @@ public class ESP32MoveBridge : MonoBehaviour
 
     private void OnDisable()
     {
-        // Undo our last injection so we don't leave a stuck move value behind.
         if (starterInputs != null)
         {
             starterInputs.move -= _lastInjected;
@@ -75,13 +64,11 @@ public class ESP32MoveBridge : MonoBehaviour
             if (oscReceiver == null) return;
         }
 
-        // Remove previous injection first so we don't accumulate if StarterAssets overwrites move elsewhere.
         starterInputs.move -= _lastInjected;
         _lastInjected = Vector2.zero;
 
         if (requireOSCConnected && !oscReceiver.IsConnected(oscTimeoutSeconds))
         {
-            // When disconnected, leave only the "base" move input (keyboard, etc.).
             return;
         }
 

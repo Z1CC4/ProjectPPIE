@@ -1,16 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-/// <summary>
-/// Keyboard input provider that simulates the ESP32 hardware.
-/// 
-/// Controls:
-/// - F key → Fire ON
-/// - G key → Fire OFF
-/// - W key → Water ON
-/// - S key → Water OFF
-/// - Arrow keys or WASD → Joystick direction
-/// </summary>
 public class KeyboardInputProvider : MonoBehaviour, IInputProvider
 {
     [Header("Keyboard Input Settings")]
@@ -48,7 +38,7 @@ public class KeyboardInputProvider : MonoBehaviour, IInputProvider
     public float panIntensityDecreaseRate = 3.0f;
 
     private Vector2 currentJoystickDirection = Vector2.zero;
-    private float currentPanIntensity = 0.0f; // 0.0 to 1.0
+    private float currentPanIntensity = 0.0f;
     private bool isActive = true;
     private Keyboard keyboard;
 
@@ -59,7 +49,6 @@ public class KeyboardInputProvider : MonoBehaviour, IInputProvider
 
     private void OnEnable()
     {
-        // Re-acquire keyboard in case it was lost
         if (keyboard == null)
         {
             keyboard = Keyboard.current;
@@ -68,7 +57,6 @@ public class KeyboardInputProvider : MonoBehaviour, IInputProvider
 
     public bool IsActive()
     {
-        // Re-check keyboard availability
         if (keyboard == null)
         {
             keyboard = Keyboard.current;
@@ -84,16 +72,13 @@ public class KeyboardInputProvider : MonoBehaviour, IInputProvider
             if (keyboard == null) return;
         }
 
-        // Update joystick direction from keyboard
         UpdateJoystickDirection();
         
-        // Update pan movement intensity
         UpdatePanMovementIntensity();
     }
 
     public bool GetFireOn()
     {
-        // Use Keyboard.current directly (like the test that works)
         if (Keyboard.current == null) return false;
         return Keyboard.current[fireOnKey].wasPressedThisFrame;
     }
@@ -126,9 +111,6 @@ public class KeyboardInputProvider : MonoBehaviour, IInputProvider
         return currentPanIntensity;
     }
 
-    /// <summary>
-    /// Updates the virtual joystick direction based on keyboard input.
-    /// </summary>
     private void UpdateJoystickDirection()
     {
         if (keyboard == null)
@@ -141,22 +123,19 @@ public class KeyboardInputProvider : MonoBehaviour, IInputProvider
 
         if (useWASD)
         {
-            // WASD controls
-            if (keyboard[Key.A].isPressed) direction.x -= 1f; // Left
-            if (keyboard[Key.D].isPressed) direction.x += 1f; // Right
-            if (keyboard[Key.W].isPressed) direction.y += 1f; // Forward/Up
-            if (keyboard[Key.S].isPressed) direction.y -= 1f; // Back/Down
+            if (keyboard[Key.A].isPressed) direction.x -= 1f;
+            if (keyboard[Key.D].isPressed) direction.x += 1f;
+            if (keyboard[Key.W].isPressed) direction.y += 1f;
+            if (keyboard[Key.S].isPressed) direction.y -= 1f;
         }
         else
         {
-            // Arrow keys
             if (keyboard[Key.LeftArrow].isPressed) direction.x -= 1f;
             if (keyboard[Key.RightArrow].isPressed) direction.x += 1f;
             if (keyboard[Key.UpArrow].isPressed) direction.y += 1f;
             if (keyboard[Key.DownArrow].isPressed) direction.y -= 1f;
         }
 
-        // Normalize and apply sensitivity
         if (direction.magnitude > 0.1f)
         {
             direction = direction.normalized * joystickSensitivity;
@@ -169,9 +148,6 @@ public class KeyboardInputProvider : MonoBehaviour, IInputProvider
         currentJoystickDirection = direction;
     }
 
-    /// <summary>
-    /// Updates the pan movement intensity based on key press (simulates FSR pressure).
-    /// </summary>
     private void UpdatePanMovementIntensity()
     {
         if (keyboard == null)
@@ -184,21 +160,16 @@ public class KeyboardInputProvider : MonoBehaviour, IInputProvider
 
         if (isKeyHeld)
         {
-            // Increase intensity when key is held
             currentPanIntensity += panIntensityIncreaseRate * Time.deltaTime;
             currentPanIntensity = Mathf.Clamp01(currentPanIntensity) * maxPanIntensity;
         }
         else
         {
-            // Decrease intensity when key is released
             currentPanIntensity -= panIntensityDecreaseRate * Time.deltaTime;
             currentPanIntensity = Mathf.Max(0.0f, currentPanIntensity);
         }
     }
 
-    /// <summary>
-    /// Can be called to disable keyboard input (e.g., when ESP32 is connected).
-    /// </summary>
     public void SetActive(bool active)
     {
         isActive = active;

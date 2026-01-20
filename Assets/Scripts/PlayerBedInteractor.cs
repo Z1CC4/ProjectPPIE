@@ -2,12 +2,6 @@ using System.Collections;
 using UnityEngine;
 using StarterAssets;
 
-/// <summary>
-/// Metti questo componente sul Player (root del personaggio).
-/// - Quando entri nel trigger del letto, memorizza il BedLaySpot.
-/// - Premendo il tasto JOY, fa toggle: sdraiati / alzati.
-/// Disabilita temporaneamente i componenti indicati (es. FirstPersonController, camera look, ecc.).
-/// </summary>
 public class PlayerBedInteractor : MonoBehaviour
 {
     [Header("Input")]
@@ -69,7 +63,6 @@ public class PlayerBedInteractor : MonoBehaviour
 
     private void Start()
     {
-        // init edge detector as "not pressed"
         _prevOscBtn = 1 - oscPressedValue;
     }
 
@@ -78,7 +71,6 @@ public class PlayerBedInteractor : MonoBehaviour
         if (!_isLying || _activeBed == null)
             return;
 
-        // Blocca input movimento (ma lascia look libero)
         if (starterAssetsInputs == null)
         {
             starterAssetsInputs = GetComponent<StarterAssetsInputs>();
@@ -90,7 +82,6 @@ public class PlayerBedInteractor : MonoBehaviour
             starterAssetsInputs.sprint = false;
         }
 
-        // Blocca posizione sul letto, evitando drift/gravity.
         if (lockPositionToLayTarget && _activeBed.layTarget != null)
         {
             var t = PlayerRoot;
@@ -106,7 +97,6 @@ public class PlayerBedInteractor : MonoBehaviour
         if (!JoyPressedThisFrame())
             return;
 
-        // Toggle
         if (_isLying)
         {
             StartCoroutine(CoGetUp());
@@ -117,9 +107,6 @@ public class PlayerBedInteractor : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Chiamabile da un IInteractable (es. BedLayInteractable) per usare lo stesso JOY degli altri oggetti.
-    /// </summary>
     public void ToggleBed(BedLaySpot bed)
     {
         if (_isTransitioning)
@@ -139,11 +126,9 @@ public class PlayerBedInteractor : MonoBehaviour
 
     private bool JoyPressedThisFrame()
     {
-        // Sempre sicuro
         if (Input.GetKeyDown(joyKey))
             return true;
 
-        // Input Manager: può lanciare eccezione se il bottone non esiste -> lo gestiamo.
         if (!string.IsNullOrWhiteSpace(joyButtonName))
         {
             try
@@ -153,11 +138,9 @@ public class PlayerBedInteractor : MonoBehaviour
             }
             catch
             {
-                // Ignora: significa che l'asse/bottone "JOY" non è configurato.
             }
         }
 
-        // ESP32 OSC: stesso concetto usato da ESP32JoystickLookBridge (edge detect)
         if (oscReceiver == null)
         {
             oscReceiver = ESP32OSCReceiver.Instance != null
@@ -192,12 +175,9 @@ public class PlayerBedInteractor : MonoBehaviour
         _isTransitioning = true;
         _activeBed = bed;
 
-        // Salva stato
         _savedPos = PlayerRoot.position;
         _savedRot = PlayerRoot.rotation;
 
-        // Durante lo snap, disabilita eventuali script che potrebbero "lottare" con lo spostamento.
-        // NOTA: li riabilitiamo subito dopo, così la vista resta libera anche a letto.
         SetEnabled(disableWhileLying, false);
 
         if (rigidbodyToFreeze != null)
@@ -211,7 +191,6 @@ public class PlayerBedInteractor : MonoBehaviour
         yield return CoSnap(PlayerRoot, bed.layTarget.position, bed.layTarget.rotation, Mathf.Max(0f, bed.snapDuration));
 
         _isLying = true;
-        // Riabilita subito gli script (così puoi muovere la vista). Il movimento viene bloccato in LateUpdate.
         SetEnabled(disableWhileLying, true);
         _isTransitioning = false;
     }
@@ -223,7 +202,6 @@ public class PlayerBedInteractor : MonoBehaviour
 
         _isTransitioning = true;
 
-        // Durante lo snap di uscita, disabilita eventuali script che potrebbero interferire.
         SetEnabled(disableWhileLying, false);
 
         Vector3 targetPos;
@@ -242,11 +220,9 @@ public class PlayerBedInteractor : MonoBehaviour
 
         yield return CoSnap(PlayerRoot, targetPos, targetRot, Mathf.Max(0f, _activeBed.snapDuration));
 
-        // Ripristina rigidbody
         if (rigidbodyToFreeze != null)
             rigidbodyToFreeze.isKinematic = _savedRbKinematic;
 
-        // Riabilita gli script dopo lo snap
         SetEnabled(disableWhileLying, true);
 
         _isLying = false;

@@ -2,12 +2,6 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
-/// <summary>
-/// Planar mirror for URP (Unity 6 / URP 17):
-/// - Renders a reflection camera into a RenderTexture
-/// - Applies it to the mirror renderer via MaterialPropertyBlock
-/// - Derives the mirror plane from the mesh (more robust for imported prefabs)
-/// </summary>
 public class PlanarMirror : MonoBehaviour
 {
     public enum PlaneDerivation
@@ -18,10 +12,6 @@ public class PlanarMirror : MonoBehaviour
 
     public enum ReflectionBehavior
     {
-        /// <summary>
-        /// Far: freeze a static reflection (stable interior).
-        /// Near: render a true planar reflection using the player camera (so you can see yourself).
-        /// </summary>
         StaticWhenFar_DynamicWhenNear,
         StaticOnly,
         DynamicOnly
@@ -106,9 +96,6 @@ public class PlanarMirror : MonoBehaviour
     [Header("Editor")]
     public bool renderInSceneView = false;
 
-    [Header("Debug")]
-    public bool logWarnings = true;
-
     private Camera _reflectionCamera;
     private RenderTexture _reflectionTexture;
     private MaterialPropertyBlock _mpb;
@@ -163,7 +150,6 @@ public class PlanarMirror : MonoBehaviour
     {
         if (mirrorRenderer == null)
         {
-            if (logWarnings) Debug.LogWarning("PlanarMirror: mirrorRenderer is null.", this);
             return;
         }
 
@@ -229,7 +215,6 @@ public class PlanarMirror : MonoBehaviour
 
         if (!TryGetMirrorPlane(camera.transform.position, out var planePoint, out var planeNormal))
         {
-            if (logWarnings) Debug.LogWarning("PlanarMirror: could not compute mirror plane.", this);
             return;
         }
 
@@ -250,14 +235,13 @@ public class PlanarMirror : MonoBehaviour
 
         if (shouldRenderDynamic)
         {
-            _hasStaticCapture = false; // force a new static capture next time we go static
+            _hasStaticCapture = false;
             RenderDynamicReflection(context, camera, planePoint, planeNormal);
             return;
         }
 
         if (!staticAllowed) return;
 
-        // Static/frozen: capture once, then keep it.
         if (!_hasStaticCapture)
         {
             RenderStaticReflection(context, camera, planePoint, planeNormal);
@@ -275,7 +259,6 @@ public class PlanarMirror : MonoBehaviour
     {
         ConfigureReflectionCamera(sourceCamera, reflectionMask);
 
-        // Reflection matrix around plane.
         float d = -Vector3.Dot(planeNormal, planePoint) - clipPlaneOffset;
         Vector4 plane = new Vector4(planeNormal.x, planeNormal.y, planeNormal.z, d);
         Matrix4x4 refl = CalculateReflectionMatrix(plane);
@@ -364,7 +347,6 @@ public class PlanarMirror : MonoBehaviour
         _reflectionCamera.worldToCameraMatrix = worldToCamera;
         _reflectionCamera.projectionMatrix = sourceCamera.projectionMatrix;
 
-        // Keep transform consistent for culling/skybox heuristics.
         Matrix4x4 camToWorld = worldToCamera.inverse;
         Vector3 pos = camToWorld.GetColumn(3);
         Vector3 forward = camToWorld.GetColumn(2);
@@ -406,7 +388,6 @@ public class PlanarMirror : MonoBehaviour
             return true;
         }
 
-        // From mesh plane (preferred).
         var mf = mirrorRenderer.GetComponent<MeshFilter>();
         if (mf == null || mf.sharedMesh == null) return false;
         var mesh = mf.sharedMesh;
@@ -425,11 +406,8 @@ public class PlanarMirror : MonoBehaviour
         if (n.sqrMagnitude < 1e-6f) return false;
         normal = n.normalized;
 
-        // Use mesh bounds center as a stable point on the plane.
         point = mf.transform.TransformPoint(mesh.bounds.center);
 
-        // For clipping we want the normal that faces the camera; reflection matrix is invariant under sign,
-        // but clip side selection relies on it.
         if (Vector3.Dot(normal, viewerPosition - point) < 0f)
         {
             normal = -normal;

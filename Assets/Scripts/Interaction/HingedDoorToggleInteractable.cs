@@ -1,10 +1,6 @@
 using System.Collections;
 using UnityEngine;
 
-/// <summary>
-/// Simple open/close for doors like fridge/microwave: rotates a target transform around its local axis.
-/// No Animator required.
-/// </summary>
 public class HingedDoorToggleInteractable : MonoBehaviour, IInteractable
 {
     [Header("Target")]

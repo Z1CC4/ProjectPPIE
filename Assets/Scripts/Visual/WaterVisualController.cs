@@ -1,10 +1,5 @@
 using UnityEngine;
 
-/// <summary>
-/// Visual controller for water effects.
-/// This script reacts to KitchenState water changes and updates visual effects
-/// (particle systems, water flow, etc.). It contains NO input logic.
-/// </summary>
 public class WaterVisualController : MonoBehaviour
 {
     [Header("Water Visual Effects")]
@@ -26,7 +21,6 @@ public class WaterVisualController : MonoBehaviour
 
     private void Start()
     {
-        // Get reference to KitchenState
         kitchenState = KitchenState.Instance;
         if (kitchenState == null)
         {
@@ -35,28 +29,21 @@ public class WaterVisualController : MonoBehaviour
             return;
         }
 
-        // Subscribe to water state changes
         kitchenState.OnWaterStateChanged += HandleWaterStateChanged;
 
-        // Set initial state
         HandleWaterStateChanged(kitchenState.IsWaterOn);
     }
 
     private void OnDestroy()
     {
-        // Unsubscribe from events
         if (kitchenState != null)
         {
             kitchenState.OnWaterStateChanged -= HandleWaterStateChanged;
         }
     }
 
-    /// <summary>
-    /// Handles water state changes and updates visual effects.
-    /// </summary>
     private void HandleWaterStateChanged(bool isWaterOn)
     {
-        // Update particle system
         if (waterParticles != null)
         {
             if (isWaterOn)
@@ -66,7 +53,6 @@ public class WaterVisualController : MonoBehaviour
                     waterParticles.Play();
                 }
 
-                // Adjust emission rate based on intensity (ready for analog input)
                 var emission = waterParticles.emission;
                 emission.rateOverTime = 100f * waterIntensity;
             }
@@ -79,13 +65,11 @@ public class WaterVisualController : MonoBehaviour
             }
         }
 
-        // Update water mesh
         if (waterMesh != null)
         {
             waterMesh.SetActive(isWaterOn);
         }
 
-        // Update audio
         if (waterAudioSource != null)
         {
             if (isWaterOn)
@@ -105,14 +89,10 @@ public class WaterVisualController : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Sets water intensity (for future analog water sensor support).
-    /// </summary>
     public void SetWaterIntensity(float intensity)
     {
         waterIntensity = Mathf.Clamp01(intensity);
         
-        // Update particle emission if water is on
         if (kitchenState != null && kitchenState.IsWaterOn && waterParticles != null)
         {
             var emission = waterParticles.emission;
